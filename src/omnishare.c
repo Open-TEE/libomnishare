@@ -20,11 +20,12 @@
 
 #include <string.h>
 
+/* The UUID (name) of the TA to which we will be connecting */
 static const TEEC_UUID omnishare_uuid = {
 	0x12345678, 0x8765, 0x4321, { 'O', 'M', 'N', 'I', 'S', 'H', 'A', 'R'}
 };
 
-/* Context an session that are persistant for the duration of a connection */
+/* Context an session that are persistant for the duration of an omnishare connection */
 static TEEC_Context g_context;
 static TEEC_Session g_session;
 
@@ -124,9 +125,13 @@ uint32_t omnishare_init(uint8_t *root_key, uint32_t size)
 		return TEEC_ERROR_BAD_PARAMETERS;
 
 	/*
-	 * Initialize a persistant context for this connection
+	 * TODO: Initialize a persistant context for this connection. This context will be used
+	 * as long as the Local_View is mounted, therefore we will utilize the
+	 * global context (g_context).
+	 *
+	 * See Client API Section 4.5.2 TEEC_InitializeContext
 	 */
-	ret = TEEC_InitializeContext(NULL, &g_context);
+
 	if (ret != TEEC_SUCCESS)
 		return ret;
 
@@ -139,31 +144,41 @@ uint32_t omnishare_init(uint8_t *root_key, uint32_t size)
 	in_mem.flags = TEEC_MEM_INPUT;
 
 	/*
-	 * Register the memory
+	 * TODO: Register the input memory with the recently generated context.
+	 *
+	 * See Client API Section 4.5.4 TEEC_RegisterSharedMemory
 	 */
-	ret = TEEC_RegisterSharedMemory(&g_context, &in_mem);
+
 	if (ret != TEEC_SUCCESS)
 		goto out_err;
 
-	/* Set the parameter types that we are sending to the TA */
+	/* Set the parameter types that we are sending to the TA and register the recently created
+	 * shared memory as one of the operation paramaters that is to be sent to the TA during
+	 * the open session.
+	 */
 	operation.paramTypes = TEEC_PARAM_TYPES(TEEC_MEMREF_WHOLE, TEEC_NONE, TEEC_NONE, TEEC_NONE);
 	operation.params[0].memref.parent = &in_mem;
 
 	/*
-	 * Now create a persistant session to connect to the omnishare TA. The root key is
-	 * passed as part of this open session
+	 * TODO: Now create a persistant session to connect to the omnishare TA.
+	 *
+	 * In addition to our persistant paramaters we are going to be using a
+	 * PUBLIC login and don't forget that we have created an operation for something ;)
+	 *
+	 * See Client API Section 4.5.7 TEEC_OpenSession
 	 */
-	ret = TEEC_OpenSession(&g_context, &g_session, &omnishare_uuid,
-			       TEEC_LOGIN_PUBLIC, NULL, &operation, &retOrigin);
+
 
 	/*
-	 * Cleanup any allocated shared memory
+	 * TODO: Cleanup any allocated shared memory
+	 *
+	 * see Client API Section 4.5.6 TEEC_ReleaseSharedMemory
 	 */
-	TEEC_ReleaseSharedMemory(&in_mem);
+
 
 	/*
 	 * Check the return value from the open session, if it is a success return
-	 * otherwise we should cleanup the context connection
+	 * otherwise we should drop through and cleanup the context.
 	 */
 	if (ret == TEE_SUCCESS)
 		return ret;
@@ -224,10 +239,13 @@ uint32_t omnishare_do_crypto(uint8_t *key_chain, uint32_t key_count, uint32_t ke
 		key_mem.flags = TEEC_MEM_INPUT;
 
 		/*
+		 * TODO:
 		 * Request that the TEE allocates shared memory for us, as it should be the
 		 * most efficient way.
+		 *
+		 * See Client API Section 4.5.5 TEEC_AllocateSharedMemory
 		 */
-		ret = TEEC_AllocateSharedMemory(&g_context, &key_mem);
+
 		if (ret != TEE_SUCCESS)
 			goto free_shm;
 
@@ -260,8 +278,13 @@ uint32_t omnishare_do_crypto(uint8_t *key_chain, uint32_t key_count, uint32_t ke
 						have_src, TEEC_MEMREF_WHOLE);
 
 
-	/* Invoke command */
-	ret = TEEC_InvokeCommand(&g_session, CMD_DO_CRYPTO, &operation, &retOrigin);
+	/* TODO: Invoke command
+	 *
+	 * Our Command ID is always CMD_DO_CRYPTO in this context
+	 *
+	 * See Client API Section 4.5.9 TEEC_InvokeCommand
+	 */
+
 
 	/* Inform the caller of the number of bytes actually used in the destination buffer */
 	*dest_len = dest_mem.size;
@@ -276,8 +299,15 @@ free_shm:
 
 void omnishare_finalize(void)
 {
-	TEEC_CloseSession(&g_session);
-	TEEC_FinalizeContext(&g_context);
+	/* TODO: Cleanup.
+	 *
+	 * Now that the omnishare application is disconnecting we must clean up our persistant
+	 * states.
+	 *
+	 * See Client API Section : 4.5.8 TEEC_CloseSession
+	 *                        : 4.5.3 TEEC_FinalizeContext
+	 */
+
 
 	memset(&g_session, 0, sizeof(TEEC_Session));
 	memset(&g_context, 0, sizeof(TEEC_Context));
