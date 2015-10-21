@@ -32,6 +32,8 @@
 #define OM_OP_ENCRYPT_FILE 0
 #define OM_OP_DECRYPT_FILE 1
 #define OM_OP_CREATE_DIRECTORY_KEY 2
+#define OM_OP_CREATE_FILE 3
+#define OM_OP_OPEN_FILE 4
 
 /*!
  * \brief omnishare_generate_root_key
@@ -49,9 +51,12 @@ uint32_t omnishare_generate_root_key(uint8_t *key, uint32_t *key_size);
  * the omnishare tree.
  * \param root_key [IN] The encrypted root key of the omnishare directory tree
  * \param size [IN] The size of the key blob in bytes
+ * \param fuse_session [OUT] A handle to the session that is created for the FUSE. This session is
+ * created at the start of the FUSE and persists until the FUSE is unmounted. It is used for
+ * non-file specific interaction with the TEE.
  * \return 0 on success
  */
-uint32_t omnishare_init(uint8_t *root_key, uint32_t size);
+uint32_t omnishare_init(uint8_t *root_key, uint32_t size, void **fuse_session);
 
 /*!
  * \brief omnishare_do_crypto
@@ -65,16 +70,56 @@ uint32_t omnishare_init(uint8_t *root_key, uint32_t size);
  * \param src_len [IN] Size of data to be acted on, or 0 when creating keys
  * \param dest [IN/OUT] Buffer to hold the output
  * \param dest_len [IN/OUT] Length of the buffer available for output, on out the actual length used
+ * \param fuse_session [IN] The current session that is open for invoking commands
  * \return 0 on success
  */
 uint32_t omnishare_do_crypto(uint8_t *key_chain, uint32_t key_count, uint32_t key_len,
 			     uint8_t op_cmd, uint8_t *src, uint32_t src_len,
-			     uint8_t *dest, uint32_t *dest_len);
+			     uint8_t *dest, uint32_t *dest_len, void *fuse_session);
 
 /*!
- * \brief finalize
+ * \brief omnishare_finalize
  * Cleanup the omnishare instance
+ * \param fuse_session [IN] The the session that is open to the fuse that should be closed
  */
-void omnishare_finalize(void);
+void omnishare_finalize(void *fuse_session);
 
+/*!
+ * \brief omnishare_opensession
+ * Perform the main crypto graphic operations of omnishare
+ * \param key_chain [IN] The chain of keys tha tlead from the root dir down to the level
+ * where the current file operations are taking place.
+ * \param key_count [IN] The number of keys in the keychain
+ * \param key_len [IN] The size of each individual key
+ * \param op_cmd [IN] Which operation to perform
+ * \param src [IN] Data to be operated on, or NULL when creating keys
+ * \param src_len [IN] Size of data to be acted on, or 0 when creating keys
+ * \param dest [IN/OUT] Buffer to hold the output
+ * \param dest_len [IN/OUT] Length of the buffer available for output, on out the actual length used
+ * \param fuse_session [OUT] The current session that is open for invoking commands
+ * \return 0 on success
+ */
+uint32_t omnishare_opensession(uint8_t *key_chain, uint32_t key_count, uint32_t key_len,
+			       uint8_t op_cmd, uint8_t *src, uint32_t src_len,
+			       uint8_t *dest, uint32_t *dest_len, void **fuse_session);
+
+/*!
+ * \brief omnishare_invoke
+ * \param op_cmd [IN] Which operation to perform
+ * \param src [IN] Data to be operated on, or NULL when creating keys
+ * \param src_len [IN] Size of data to be acted on, or 0 when creating keys
+ * \param dest [IN/OUT] Buffer to hold the output
+ * \param dest_len [IN/OUT] Length of the buffer available for output, on out the actual length used
+ * \param fuse_session [IN] The current session that is open for invoking commands
+ * \return 0 on success
+ */
+uint32_t omnishare_invoke(uint8_t op_cmd, uint8_t *src, uint32_t src_len,
+			  uint8_t *dest, uint32_t *dest_len, void *fuse_session);
+
+/*!
+ * \brief omnishare_closesession
+ *  Cleanup the file session
+ * \param fuse_session [IN] The open session to close
+ */
+void omnishare_closesession(void *fuse_session);
 #endif
