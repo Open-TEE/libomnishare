@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "9ab29df4_7ec1b3e3",
+        "filename": "src/omnishare.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 352,
+      "author": {
+        "id": 1000804
+      },
+      "writtenOn": "2015-10-22T09:12:02Z",
+      "side": 1,
+      "message": "if op_cmd is not one of those above, should we return an error?eg. if () {...} else if (){...} else {return error}",
+      "revId": "7e17575b19ca0ea7daf18fc130da21fb97ae42da",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
